@@ -5,6 +5,8 @@ import {
   ErrorBoundary,
   Index,
   Ref,
+  createEffect,
+  onCleanup,
 } from 'solid-js'
 
 import styles from './App.module.css'
@@ -24,8 +26,9 @@ interface responseCode {
 type choicesArr = [responseCode, responseCode, responseCode, responseCode]
 
 enum quizStateEnum {
-  selection,
+  initialSelection,
   correct,
+  wrong
 }
 
 const App: Component = () => {
@@ -44,7 +47,7 @@ const App: Component = () => {
   const getNewCodeInfoArr = async () => {
     return (await JSON.parse(responseCodesJson)) as responseCode[]
   }
-  const [quizState, setQuizState] = createSignal(quizStateEnum.selection)
+  const [quizState, setQuizState] = createSignal(quizStateEnum.initialSelection)
 
   const getNewIndex = (arr: Array<responseCode>) => {
     return Math.floor(Math.random() * (arr.length ?? 0))
@@ -74,18 +77,20 @@ const App: Component = () => {
       // This is the only way I can figure out to clear the checked
       // status of the radio buttons without recreating the DOM nodes
       const inputs = fieldSet.getElementsByTagName('input')
-      Array.from(inputs).forEach(el => {
+      Array.from(inputs).forEach((el) => {
         el.checked = false
       })
     }
     await applyQuestionChoices()
     chooseCorrectAnswer()
     setCurrentChoice('')
-    setQuizState(quizStateEnum.selection)
+    setQuizState(quizStateEnum.initialSelection)
   }
   const applyResult = () => {
     if (correctAnswer()?.code === currentChoice()) {
       setQuizState(quizStateEnum.correct)
+    } else {
+      setQuizState(quizStateEnum.wrong)
     }
   }
 
@@ -96,7 +101,20 @@ const App: Component = () => {
     await applyNewQuestion()
   })
 
+  createEffect(() => {
+    const currentQuizState = quizState()
+    console.log(currentQuizState)
+    console.log(styles.fadeIn)
+    if (currentQuizState !== quizStateEnum.initialSelection && resultElement) {
+      const timeoutId = setTimeout(() => {
+        resultElement?.classList.remove(styles.fadeIn)
+      }, 500)
+      onCleanup(() => clearTimeout(timeoutId))
+    }
+  })
+
   let fieldSet: HTMLFieldSetElement | undefined
+  let resultElement: HTMLHeadingElement | undefined
 
   return (
     <ErrorBoundary fallback={(err) => err}>
@@ -128,14 +146,30 @@ const App: Component = () => {
             </Index>
           </fieldset>
 
-          {<h2 class={styles.result}>{quizState() === quizStateEnum.correct && 'Correct!'}</h2>}
+          {
+            <h2 ref={(el) => (resultElement = el)} class={`${styles.result} ${quizState() !== quizStateEnum.initialSelection ? `${styles.fadeIn} ${styles.opacity1}` : ''}`}>
+              {quizState() === quizStateEnum.correct && 'Correct!' || quizState() === quizStateEnum.wrong && 'Try again!'}
+            </h2>
+          }
 
           <button
             onClick={() => {
-              if (quizState() === quizStateEnum.selection) {
-                applyResult()
-              } else if (quizState() === quizStateEnum.correct) {
-                applyNewQuestion()
+              switch (quizState()) {
+                case quizStateEnum.initialSelection:
+                case quizStateEnum.wrong:
+                  applyResult()
+                  break
+                case quizStateEnum.correct:
+                  applyNewQuestion()
+                  break
+              }
+              if (resultElement) {
+                /** @todo Make this declarative. We're in a Reactive library! :P */
+                resultElement.classList.remove(styles.fadeIn)
+
+                const actualQuizState = quizState()
+                setQuizState(quizStateEnum.initialSelection)
+                setQuizState(actualQuizState)
               }
             }}
           >
