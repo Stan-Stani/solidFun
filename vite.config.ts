@@ -17,5 +17,6 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
-  assetsInclude: ['./assets/**']
+  assetsInclude: ['./assets/**'],
+  base: '/solidFun/'
 });
