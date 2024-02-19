@@ -1,0 +1,14 @@
+.App {
+  background: darkolivegreen;
+
+  .description {
+    overflow-y: auto;
+    height: 125px;
+  }
+
+  .result {
+    height: 1.5em;
+  }
+
+  
+}

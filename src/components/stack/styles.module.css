@@ -1,0 +1,4 @@
+.outer {
+    display: flex;
+    flex-direction: column;
+}
